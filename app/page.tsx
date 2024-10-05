@@ -332,7 +332,7 @@ END:VCARD
                 </span>
                 .
               </h1>
-              <p className="text-lg sm:text-xl max-w-xl mx-auto text-center text-gray-600">
+              <p className="text-lg sm:text-xl font-[350] max-w-xl mx-auto text-center text-gray-600">
                 Just got added to a groupchat and don&apos;t have anyone&apos;s
                 contact saved? Use this quick tool to easily get everyone&apos;s
                 contact added in one-go.
