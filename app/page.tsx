@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -300,9 +300,9 @@ END:VCARD
               .
             </h1>
             <p className="text-xl max-w-xl mx-auto text-center text-gray-600">
-              Just got added to a groupchat and don't have anyone's contact
-              saved? Use this quick tool to easily get everyone's contact added
-              in one-go.
+              Just got added to a groupchat and don&apos;t have anyone&apos;s
+              contact saved? Use this quick tool to easily get everyone&apos;s
+              contact added in one-go.
             </p>
           </div>
           <div className="container mx-auto p-4 max-w-2xl">
