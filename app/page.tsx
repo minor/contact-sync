@@ -249,10 +249,10 @@ END:VCARD
   };
 
   return (
-    <main className="antialiased min-h-screen bg-gray-50 text-gray-900">
-      <div className="relative">
+    <main className="antialiased min-h-screen bg-gray-50 text-gray-900 overflow-x-hidden">
+      <div className="relative w-full">
         <div
-          className="pointer-events-none absolute left-1/2 top-0 z-0 h-[400px] w-[1000px] -translate-x-1/2 -translate-y-1/2 opacity-[0.15]"
+          className="pointer-events-none absolute left-1/2 top-0 z-0 h-[400px] w-full max-w-[1000px] -translate-x-1/2 -translate-y-1/2 opacity-[0.15]"
           style={{
             backgroundImage: "radial-gradient(#A4A4A3, transparent 50%)",
           }}
@@ -286,9 +286,9 @@ END:VCARD
             fill="url(#83fd4e5a-9d52-42fc-97b6-718e5d7ee527)"
           ></rect>
         </svg>
-        <div className="mx-auto max-w-2xl pt-64 text-center relative z-10">
-          <div className="relative mx-4 sm:mx-0 flex flex-col">
-            <h1 className="relative mb-4 text-5xl font-semibold">
+        <div className="mx-auto max-w-3xl pt-16 sm:pt-24 lg:pt-56 px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center">
+            <h1 className="text-5xl font-semibold mb-4">
               Create{" "}
               <span className="bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400 text-transparent bg-clip-text">
                 multiple
@@ -299,13 +299,13 @@ END:VCARD
               </span>
               .
             </h1>
-            <p className="text-xl max-w-xl mx-auto text-center text-gray-600">
+            <p className="text-lg sm:text-xl max-w-xl mx-auto text-center text-gray-600">
               Just got added to a groupchat and don&apos;t have anyone&apos;s
               contact saved? Use this quick tool to easily get everyone&apos;s
               contact added in one-go.
             </p>
           </div>
-          <div className="container mx-auto p-4 max-w-2xl">
+          <div className="mt-4 mb-8 mx-8 text-center max-w-2xl">
             <Tabs value={viewmode} onValueChange={setViewmode} className="mb-4">
               <TabsList>
                 <TabsTrigger value="individual" className="text-md">
@@ -334,12 +334,9 @@ END:VCARD
                     onChange={(e) => setPhone(e.target.value)}
                     required
                   />
-                  <button
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
-                    type="submit"
-                  >
+                  <Button type="submit" className="h-10 w-full">
                     <Plus className="mr-2 h-4 w-4" /> Add Contact
-                  </button>
+                  </Button>
                 </form>
               </TabsContent>
               <TabsContent value="spreadsheet">
@@ -350,12 +347,9 @@ END:VCARD
                     onChange={(e) => setCsvData(e.target.value)}
                     rows={5}
                   />
-                  <button
-                    onClick={processCSV}
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
-                  >
+                  <Button onClick={processCSV} className="h-10 w-full">
                     <Plus className="mr-2 h-4 w-4" /> Process Spreadsheet
-                  </button>
+                  </Button>
                 </div>
               </TabsContent>
               <TabsContent value="image">
@@ -364,16 +358,16 @@ END:VCARD
                     type="file"
                     accept="image/*"
                     onChange={processImage}
-                    className="file:mr-4 h-[11.5] file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    className="file:mr-4 file:py-2 file:px-4 h-[11.5] file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                   />
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-center text-muted-foreground">
                     Upload a screenshot of contacts to process
                   </p>
                 </div>
               </TabsContent>
             </Tabs>
             <div className="mb-4">
-              <h2 className="text-xl font-semibold mb-2">
+              <h2 className="text-xl text-center font-semibold mb-2">
                 {viewmode === "individual"
                   ? "Current contacts:"
                   : "Processed contacts:"}
@@ -384,13 +378,13 @@ END:VCARD
                     key={contact.id}
                     className="flex justify-between items-center bg-muted shadow p-2 rounded"
                   >
-                    <span>
+                    <span className="truncate mr-2">
                       {contact.name}: {contact.phone}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="hover:text-black/0"
+                      className="shrink-0"
                       onClick={() => removeContact(contact.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -401,18 +395,12 @@ END:VCARD
             </div>
             {contacts.length > 0 && (
               <div className="space-y-2">
-                <button
-                  onClick={removeAllContacts}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
-                >
+                <Button onClick={removeAllContacts} className="h-10 w-full">
                   <XIcon className="mr-2 h-4 w-4" /> Remove All Contacts
-                </button>
-                <button
-                  onClick={generateVCF}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
-                >
+                </Button>
+                <Button onClick={generateVCF} className="h-10 w-full">
                   <Download className="mr-2 h-4 w-4" /> Download All Contacts
-                </button>
+                </Button>
               </div>
             )}
           </div>
