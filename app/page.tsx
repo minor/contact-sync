@@ -1,101 +1,423 @@
-import Image from "next/image";
+"use client";
+import { useState } from "react";
+import { toast, Toaster } from "sonner";
 
-export default function Home() {
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2, Download } from "lucide-react";
+
+const Plus = ({ className = "" }) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2"
+    className={`${className}`}
+  >
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+const XIcon = ({ className = "" }) => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2"
+    className={`${className}`}
+  >
+    <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
+
+interface Contact {
+  id: number;
+  name: string;
+  phone: string;
+}
+
+export default function Page() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [csvData, setCsvData] = useState("");
+  const [viewmode, setViewmode] = useState("individual");
+
+  const formatPhoneNumber = (phoneNumberString: string) => {
+    const cleaned = ("" + phoneNumberString).replace(/\D/g, "");
+    const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+    if (match) {
+      return match[1] + "-" + match[2] + "-" + match[3];
+    }
+    return phoneNumberString;
+  };
+
+  const isValidPhoneNumber = (phoneNumber: string) => {
+    const cleaned = phoneNumber.replace(/\D/g, "");
+    return cleaned.length === 10;
+  };
+
+  const isDuplicate = (newName: string, newPhone: string) => {
+    return contacts.some(
+      (contact) =>
+        contact.name.toLowerCase() === newName.toLowerCase() &&
+        contact.phone.replace(/\D/g, "") === newPhone.replace(/\D/g, "")
+    );
+  };
+
+  const addContact = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name && phone) {
+      if (!isValidPhoneNumber(phone)) {
+        toast.error("Invalid phone number. Please enter a 10-digit number.");
+        return;
+      }
+      const formattedPhone = formatPhoneNumber(phone);
+      if (isDuplicate(name, formattedPhone)) {
+        toast.error("Duplicate contact. This name and number already exist.");
+        return;
+      }
+      setContacts([
+        ...contacts,
+        { id: Date.now(), name, phone: formattedPhone },
+      ]);
+      setName("");
+      setPhone("");
+    }
+  };
+
+  const removeContact = (id: number) => {
+    setContacts(contacts.filter((contact) => contact.id !== id));
+  };
+
+  const processCSV = () => {
+    const lines = csvData.split("\n");
+    const newContacts = lines
+      .map((line) => {
+        const [name, phone] = line.split(",");
+        const trimmedPhone = phone.trim();
+        if (!isValidPhoneNumber(trimmedPhone)) {
+          toast.error(
+            `Invalid phone number for ${name.trim()}: ${trimmedPhone}`
+          );
+          return null;
+        }
+        const formattedPhone = formatPhoneNumber(trimmedPhone);
+        return {
+          id: Date.now() + Math.random(),
+          name: name.trim(),
+          phone: formattedPhone,
+        };
+      })
+      .filter(
+        (contact): contact is Contact =>
+          contact !== null && !!contact.name && !!contact.phone
+      );
+
+    const uniqueNewContacts = newContacts.filter(
+      (newContact) => !isDuplicate(newContact.name, newContact.phone)
+    );
+
+    if (uniqueNewContacts.length < newContacts.length) {
+      toast.warning("Some duplicate contacts were skipped.");
+    }
+
+    setContacts([...contacts, ...uniqueNewContacts]);
+    setCsvData("");
+  };
+
+  const processImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      toast.error("No file selected. Please choose an image.");
+      return;
+    }
+
+    try {
+      const base64Image = await convertToBase64(file);
+      const response = await fetch("/api/process-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image: base64Image,
+          prompt: `Analyze the screenshot provided and identify all unsaved phone numbers. For each number, attempt to determine the corresponding name based on the context of the screenshot. If a name is associated with a number, output the following: Name, {Number formatted in XXX-XXX-XXXX}`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Image processing failed");
+      }
+
+      const data = await response.json();
+      const newContacts = parseApiOutput(data.output);
+      const uniqueNewContacts = newContacts.filter(
+        (newContact) => !isDuplicate(newContact.name, newContact.phone)
+      );
+
+      if (uniqueNewContacts.length < newContacts.length) {
+        toast.warning("Some duplicate contacts were skipped.");
+      }
+
+      setContacts([...contacts, ...uniqueNewContacts]);
+    } catch (error) {
+      console.error("Error processing image:", error);
+      toast.error("Error processing image. Please try again.");
+    }
+  };
+
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => {
+        console.error("Error converting file to base64:", error);
+        reject(error);
+      };
+    });
+  };
+
+  const parseApiOutput = (output: string): Contact[] => {
+    const lines = output.split("\n");
+    return lines
+      .map((line) => {
+        const [name, phone] = line.split(", ");
+
+        // Ensure both name and phone are defined before proceeding
+        if (!name || !phone) {
+          toast.error("Invalid contact format. Skipping.");
+          return null;
+        }
+
+        const trimmedPhone = phone.trim();
+
+        if (!isValidPhoneNumber(trimmedPhone)) {
+          toast.error(
+            `Invalid phone number for ${name.trim()}: ${trimmedPhone}`
+          );
+          return null;
+        }
+
+        return {
+          id: Date.now() + Math.random(),
+          name: name.trim(),
+          phone: formatPhoneNumber(trimmedPhone),
+        };
+      })
+      .filter(
+        (contact): contact is Contact =>
+          contact !== null && !!contact.name && !!contact.phone
+      );
+  };
+
+  const generateVCF = () => {
+    let vcfContent = "";
+    contacts.forEach((contact) => {
+      vcfContent += `BEGIN:VCARD
+VERSION:3.0
+FN:${contact.name}
+TEL;TYPE=CELL:${contact.phone}
+END:VCARD
+`;
+    });
+
+    const blob = new Blob([vcfContent], { type: "text/vcard" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "contacts.vcf";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const removeAllContacts = () => {
+    setContacts([]);
+    toast.success("All contacts removed");
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <main className="antialiased min-h-screen bg-gray-50 text-gray-900">
+      <div className="relative">
+        <div
+          className="pointer-events-none absolute left-1/2 top-0 z-0 h-[400px] w-[1000px] -translate-x-1/2 -translate-y-1/2 opacity-[0.15]"
+          style={{
+            backgroundImage: "radial-gradient(#A4A4A3, transparent 50%)",
+          }}
+        ></div>
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full stroke-gray-400/80 opacity-50 [mask-image:radial-gradient(100%_100%_at_top_center,white,transparent)]"
+          aria-hidden="true"
+        >
+          <defs>
+            <pattern
+              id="83fd4e5a-9d52-42fc-97b6-718e5d7ee527"
+              width="200"
+              height="200"
+              x="50%"
+              y="-1"
+              patternUnits="userSpaceOnUse"
+            >
+              <path d="M100 200V.5M.5 .5H200" fill="none"></path>
+            </pattern>
+          </defs>
+          <svg x="50%" y="-1" className="overflow-visible fill-gray-50">
+            <path
+              d="M-100.5 0h201v201h-201Z M699.5 0h201v201h-201Z M499.5 400h201v201h-201Z M-300.5 600h201v201h-201Z"
+              strokeWidth={0}
+            ></path>
+          </svg>
+          <rect
+            width="100%"
+            height="100%"
+            strokeWidth={0}
+            fill="url(#83fd4e5a-9d52-42fc-97b6-718e5d7ee527)"
+          ></rect>
+        </svg>
+        <div className="mx-auto max-w-2xl pt-64 text-center relative z-10">
+          <div className="relative mx-4 sm:mx-0 flex flex-col">
+            <h1 className="relative mb-4 text-5xl font-semibold">
+              Create{" "}
+              <span className="bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400 text-transparent bg-clip-text">
+                multiple
+              </span>{" "}
+              contacts in just{" "}
+              <span className="bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400 text-transparent bg-clip-text">
+                one click
+              </span>
+              .
+            </h1>
+            <p className="text-xl max-w-xl mx-auto text-center text-gray-600">
+              Just got added to a groupchat and don't have anyone's contact
+              saved? Use this quick tool to easily get everyone's contact added
+              in one-go.
+            </p>
+          </div>
+          <div className="container mx-auto p-4 max-w-2xl">
+            <Tabs value={viewmode} onValueChange={setViewmode} className="mb-4">
+              <TabsList>
+                <TabsTrigger value="individual" className="text-md">
+                  Individual
+                </TabsTrigger>
+                <TabsTrigger value="spreadsheet" className="text-md">
+                  Spreadsheet
+                </TabsTrigger>
+                <TabsTrigger value="image" className="text-md">
+                  Screenshot
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="individual">
+                <form onSubmit={addContact} className="space-y-2">
+                  <Input
+                    type="text"
+                    placeholder="Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                  <Input
+                    type="tel"
+                    placeholder="Phone Number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                  />
+                  <button
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
+                    type="submit"
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Add Contact
+                  </button>
+                </form>
+              </TabsContent>
+              <TabsContent value="spreadsheet">
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Paste data here in the following format: Name, Phone"
+                    value={csvData}
+                    onChange={(e) => setCsvData(e.target.value)}
+                    rows={5}
+                  />
+                  <button
+                    onClick={processCSV}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Process Spreadsheet
+                  </button>
+                </div>
+              </TabsContent>
+              <TabsContent value="image">
+                <div className="space-y-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={processImage}
+                    className="file:mr-4 h-[11.5] file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Upload a screenshot of contacts to process
+                  </p>
+                </div>
+              </TabsContent>
+            </Tabs>
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold mb-2">
+                {viewmode === "individual"
+                  ? "Current contacts:"
+                  : "Processed contacts:"}
+              </h2>
+              <ul className="space-y-2">
+                {contacts.map((contact) => (
+                  <li
+                    key={contact.id}
+                    className="flex justify-between items-center bg-muted shadow p-2 rounded"
+                  >
+                    <span>
+                      {contact.name}: {contact.phone}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover:text-black/0"
+                      onClick={() => removeContact(contact.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {contacts.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  onClick={removeAllContacts}
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
+                >
+                  <XIcon className="mr-2 h-4 w-4" /> Remove All Contacts
+                </button>
+                <button
+                  onClick={generateVCF}
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 w-full"
+                >
+                  <Download className="mr-2 h-4 w-4" /> Generate VCF
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+    </main>
   );
 }
