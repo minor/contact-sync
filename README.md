@@ -2,7 +2,7 @@
 
 Ever been added to a groupchat with no one's numbers added? And then, they just all send their names spamming the groupchat with so many messages and you have to manually add the contacts one-by-one?
 
-No longer! Contact Sync is a simple app that creates a file to add multiple contacts from manual entry, spreadsheet, or even a screenshot (uses Gemini).
+No longer! Contact Sync is a simple app that creates a file to add multiple contacts from manual entry, spreadsheet, or even a screenshot (uses Gemini). **Note**: Currently only tested on MacOS (not sure if it's possible to add multiple contacts at once on iPhone).
 
 ## Tech Stack
 
