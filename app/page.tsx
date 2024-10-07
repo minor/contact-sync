@@ -336,6 +336,9 @@ END:VCARD
                 Just got added to a groupchat and don&apos;t have anyone&apos;s
                 contact saved? Use this quick tool to easily get everyone&apos;s
                 contact added in one-go.
+                <br />
+                <span className="font-medium">Note:</span> Currently only tested
+                on MacOS.
               </p>
             </div>
             <div className="mt-4 mb-8 mx-8 text-center max-w-2xl">
